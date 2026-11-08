@@ -231,15 +231,15 @@ function renderSales(){
   const el=document.getElementById('tab-sales');
   let h=`<div class="card"><div class="bar"><h2>Số bán</h2>
     <button class="danger" id="btnClearSales">Xoá số bán</button></div>
-    <p class="muted">Nhập cột B (khoảng ngày), C (số bán mỗi ngày T2–T5), D (số bán mỗi ngày T6–CN). Cột E, F tự tính. Half = 0.5 bánh full; PM tính như PMB.</p>
+    <p class="muted">Nhập cột B (tổng số bánh bán trong 1 tuần), C (số bán mỗi ngày T2–T5), D (số bán mỗi ngày T6–CN). Cột E, F tự tính. Half = 0.5 bánh full; PM tính như PMB.</p>
     <div class="tablewrap"><table><thead><tr>
-    <th>Tên bánh</th><th>B · Số bán từ</th><th class="num">C · T2–T5</th><th class="num">D · T6–CN</th>
+    <th>Tên bánh</th><th class="num">B · Tổng bán/tuần</th><th class="num">C · T2–T5</th><th class="num">D · T6–CN</th>
     <th class="num">E · ×10% T2–T5</th><th class="num">E · ×10% T6–CN</th><th class="num">F · +10% T2–T5</th><th class="num">F · +10% T6–CN</th>
     </tr></thead><tbody>`;
   SALES_ROWS.forEach((r,i)=>{
     const s=state.sales[r.n], v=salesRow(s);
     h+=`<tr data-i="${i}"><td>${esc(r.n)}</td>
-      <td><input type="text" data-k="b" value="${esc(s.b)}" placeholder="vd: 01/11–07/11"></td>
+      <td class="num"><input class="in-num" type="number" min="0" step="any" data-k="b" value="${esc(s.b)}"></td>
       <td class="num"><input class="in-num" type="number" min="0" step="any" data-k="c" value="${esc(s.c)}"></td>
       <td class="num"><input class="in-num" type="number" min="0" step="any" data-k="d" value="${esc(s.d)}"></td>
       <td class="num" data-o="ec">${fmt(v.ec)}</td><td class="num" data-o="ed">${fmt(v.ed)}</td>
@@ -364,8 +364,8 @@ function renderRecipe(){
 document.getElementById('btnExcel').onclick=()=>{
   if(typeof XLSX==='undefined'){ alert('Chưa tải được thư viện Excel. Kiểm tra kết nối mạng rồi thử lại.'); return; }
   const wb=XLSX.utils.book_new();
-  const s=[['Tên bánh','Số bán từ','T2-T5','T6-CN','Số bán ×10% T2-T5','Số bán ×10% T6-CN','Số bán +10% T2-T5','Số bán +10% T6-CN']];
-  SALES_ROWS.forEach(r=>{ const x=state.sales[r.n], v=salesRow(x); s.push([r.n,x.b,v.c,v.d,r2(v.ec),r2(v.ed),r2(v.fc),r2(v.fd)]); });
+  const s=[['Tên bánh','Tổng bán/tuần','T2-T5','T6-CN','Số bán ×10% T2-T5','Số bán ×10% T6-CN','Số bán +10% T2-T5','Số bán +10% T6-CN']];
+  SALES_ROWS.forEach(r=>{ const x=state.sales[r.n], v=salesRow(x); s.push([r.n,num(x.b),v.c,v.d,r2(v.ec),r2(v.ed),r2(v.fc),r2(v.fd)]); });
   const ws=XLSX.utils.aoa_to_sheet(s); ws['!cols']=[{wch:18},{wch:18},{wch:9},{wch:9},{wch:16},{wch:16},{wch:16},{wch:16}];
   XLSX.utils.book_append_sheet(wb,ws,'Số bán');
   for(const tu in TU){
