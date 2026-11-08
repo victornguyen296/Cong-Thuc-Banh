@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check list chuẩn bị nguyên liệu</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{--bg:#f6f5f2;--card:#fff;--ink:#1f2328;--mute:#6b7280;--line:#e5e2dc;--acc:#c2410c;--acc2:#fff3ea;--ok:#15803d}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+  header{background:var(--ink);color:#fff;padding:14px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  header h1{font-size:18px;margin:0}
+  .actions{display:flex;flex-wrap:wrap;gap:8px}
+  button,.btn{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+  button.ghost{background:transparent;color:#fff;border-color:#555}
+  button.danger{color:#b91c1c}
+  button:hover{filter:brightness(.96)}
+  nav{display:flex;gap:4px;padding:10px 14px 0;overflow-x:auto;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:5}
+  nav button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;white-space:nowrap;background:none}
+  nav button.on{border-bottom-color:var(--acc);color:var(--acc);font-weight:600}
+  main{max-width:1100px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .bar h2{margin:0;font-size:17px}
+  .tick{display:inline-flex;align-items:center;gap:8px;background:var(--acc2);border:1px solid #fed7aa;padding:7px 12px;border-radius:8px;font-weight:600;cursor:pointer;user-select:none}
+  .tick input{width:18px;height:18px;accent-color:var(--acc)}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:520px}
+  th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
+  th{background:#faf9f7;font-size:13px;color:var(--mute);font-weight:600;position:sticky;top:0}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.res{font-weight:600}
+  td.zero{color:#c4c4c4;font-weight:400}
+  input[type=number],input[type=text],select{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;width:100%;background:#fff}
+  input[type=number]{text-align:right}
+  .in-num{max-width:90px}
+  .grp th{background:#fff;color:var(--ink);font-size:14px;padding-top:14px}
+  .muted{color:var(--mute);font-size:13px}
+  .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;background:#eef2ff;color:#3730a3;margin-left:6px}
+  details.item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff}
+  details.item summary{padding:9px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+  details.item .body{padding:4px 12px 12px}
+  .grid3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px}
+  .grid3 label{font-size:12px;color:var(--mute)}
+  .srcrow{display:grid;grid-template-columns:2fr 1fr auto;gap:6px;margin-bottom:6px}
+  .hide{display:none}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+  @media (max-width:600px){.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍕 Check list chuẩn bị nguyên liệu</h1>
+  <div class="actions">
+    <button class="primary" id="btnExcel">⬇ Xuất Excel</button>
+    <button class="ghost" id="btnBackup">💾 Sao lưu</button>
+    <button class="ghost" id="btnRestore">📂 Khôi phục</button>
+    <input type="file" id="fileRestore" accept=".json" class="hide">
+  </div>
+</header>
+<nav id="tabs">
+  <button data-tab="sales" class="on">Số bán</button>
+  <button data-tab="make">Tủ make</button>
+  <button data-tab="cut">Tủ cut</button>
+  <button data-tab="run">Tủ run</button>
+  <button data-tab="recipe">⚙ Công thức</button>
+</nav>
+<main>
+  <section id="tab-sales"></section>
+  <section id="tab-make" class="hide"></section>
+  <section id="tab-cut" class="hide"></section>
+  <section id="tab-run" class="hide"></section>
+  <section id="tab-recipe" class="hide"></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script id="core">
+/* ====== DỮ LIỆU GỐC ====== */
+const PIZZAS = ['M','SM','PMB','Cà tím','Teri','Tando','Cam nấm','JP','Kale','Mayo','Zuc','Hải sản','Sò','Tôm tỏi','Kebab','Hawaii','Salmon','Tomyum','Sashimi','BBP','Bu Salad','Soy','Q3','Q4','Q5','Egg','Mash','Khoai','Khoai cheese'];
+
+// Dòng tab Số bán: n = tên hiển thị, p = bánh quy đổi, f = hệ số (half = 0.5)
+const SALES_ROWS = [
+  ['M','M',1],['Q3','Q3',1],['Q4','Q4',1],['Q5','Q5',1],['SM','SM',1],['Cà tím','Cà tím',1],
+  ['Đá (Sashimi)','Sashimi',1],['Salmon','Salmon',1],['Hải sản','Hải sản',1],['Mayo','Mayo',1],
+  ['Teri','Teri',1],['Cam nấm','Cam nấm',1],['Soy','Soy',1],['JP','JP',1],['Tando','Tando',1],
+  ['Zuchini','Zuc',1],['Kale','Kale',1],['Tôm tỏi','Tôm tỏi',1],['Hawaiini','Hawaii',1],['Kebad','Kebab',1],
+  ['Sò','Sò',1],['Tomyum','Tomyum',1],['Egg','Egg',1],['Bpp','BBP',1],['BBP half (L)','BBP',0.5],['BBP half (S)','BBP',0.5],
+  ['PMB','PMB',1],['PMB half (L)','PMB',0.5],['PMB half (S)','PMB',0.5],
+  ['Bu Salad','Bu Salad',1],['Bu salad half (L)','Bu Salad',0.5],['Bu salad half (S)','Bu Salad',0.5],
+  ['PM','PMB',1],['Mash','Mash',1],['Khoai cheese','Khoai cheese',1],['Khoai','Khoai',1]
+].map(([n,p,f])=>({n,p,f}));
+
+// Item: [tên, đơn vị, quy đổi (chia), {bánh: định lượng / 1 full}]
+// Kết quả = Σ(số bánh × định lượng) ÷ quy đổi
+const cnt = p => ({[p]:1});
+const DEFAULT_ITEMS = {
+  make: [
+    ['Teri','full',1,cnt('Teri')],['JP','full',1,cnt('JP')],['Hải sản','full',1,cnt('Hải sản')],
+    ['Cam nấm','full',1,cnt('Cam nấm')],['Mayo','full',1,cnt('Mayo')],['Tando','full',1,cnt('Tando')],
+    ['Tomyum','full',1,cnt('Tomyum')],['Kebab','full',1,cnt('Kebab')],['Hawaii','full',1,cnt('Hawaii')],
+    ['Egg','full',1,cnt('Egg')],['Zuc','full',1,cnt('Zuc')],['Kale','full',1,cnt('Kale')],
+    ['Sò','full',1,cnt('Sò')],['Tôm tỏi','full',1,cnt('Tôm tỏi')],['SM','full',1,cnt('SM')],
+    ['Cam','gr',1,{'Q3':16,'Q4':16,'Q5':16}],
+    ['Blue','gr',1,{'Q4':16,'Q5':16}],
+    ['Raclet','gr',1,{'Q5':16}],
+    ['Salmon','gr',1,{'Salmon':140}],
+    ['Sốt cà','gr',1,{'M':90,'SM':90,'PMB':90,'Cà tím':45,'Hải sản':20,'Kebab':50,'Egg':45}],
+    ['Mozza','gr',1,{'M':90,'SM':90,'PMB':90,'Teri':60,'Tando':60,'JP':60,'Cà tím':80,'Kale':30,'Mayo':80,'Zuc':60,'Hải sản':60,'Tôm tỏi':60,'Kebab':60,'Salmon':60,'Tomyum':20,'Q3':100,'Q4':100,'Q5':100,'Egg':80}],
+    ['Phomai bột','gr',1,{'M':5,'SM':5,'PMB':5,'Teri':5,'Tando':10,'JP':10,'Cà tím':5,'Kale':30,'Mayo':5,'Zuc':15,'Sò':5,'Tôm tỏi':5,'Kebab':10,'Salmon':5,'Sashimi':10,'BBP':5,'Bu Salad':10,'Soy':5,'Q3':10,'Q4':10,'Q5':10}],
+    ['Basil','gr',1,{'M':4,'SM':4,'PMB':4,'Cà tím':4,'Egg':4}]
+  ],
+  cut: [
+    ['Cà bi','gr',1,{'BBP':34,'Soy':34,'Bu Salad':34}],
+    ['Cam nấm (camembert 50g)','full',1,cnt('Cam nấm')],
+    ['Scamozza','gr',1,{'Hải sản':10}],
+    ['Ham PM','bịch (500g)',500,{'PMB':80}],
+    ['Ham xé','bịch (500g)',500,{'BBP':50}],
+    ['Gremolata','gr',1,{'Sò':2}],
+    ['Parsley','gr',1,{'JP':0.5,'Hải sản':1.2,'Tôm tỏi':1.5}],
+    ['Tía tô','gr',1,{'Teri':5}],
+    ['Hành lá','gr',1,{'Salmon':1}],
+    ['Hành tây trắng','gr',1,{'Tomyum':10,'Soy':12}],
+    ['Hành tây tím','gr',1,{'Sashimi':10,'Bu Salad':20}],
+    ['Caper','gr',1,{'Sashimi':5,'Bu Salad':10}],
+    ['Olive đen','gr',1,{'Bu Salad':15}],
+    ['TP Bu Salad','full',1,cnt('Bu Salad')],
+    ['Sốt Fennel','gr',1,{'Bu Salad':25}],
+    ['Rocket cắt','gr',1,{'BBP':24,'Soy':24,'Bu Salad':24,'Sashimi':20,'Tando':10}],
+    ['Rocket PM','gr',1,{'PMB':8}],
+    ['Chanh','trái',6,{'Tôm tỏi':2,'Tomyum':2}],
+    ['Cà bi sấy','gr',1,{'Bu Salad':5,'Tôm tỏi':6}],
+    ['Sốt Ricotta','phần (110g)',110,{'Sashimi':70}],
+    ['Sốt Sashimi','phần (700g)',700,{'Sashimi':10}],
+    ['Viola sấy','theo số bánh Kale',1,cnt('Kale')],
+    ['Rong biển','gr',1,{'Teri':2.8}],
+    ['Tỏi phi','gr',1,{'Tôm tỏi':3,'Hawaii':3}],
+    ['Bột bã dứa','gr',1,{'Hawaii':0.7}],
+    ['Sốt dứa','gr',1,{'Hawaii':10}],
+    ['Cá Sashimi','full (80g)',1,cnt('Sashimi')],
+    ['Sốt C','full',1,cnt('Bu Salad')],
+    ['Phomai bột','gr',1,{'PMB':2,'Tando':5,'BBP':5,'Bu Salad':5,'Soy':5,'Sashimi':3}]
+  ],
+  run: [
+    ['Mash','phần',1,cnt('Mash')],
+    ['Khoai lò','phần',1,{'Khoai':1,'Khoai cheese':1}],
+    ['Tôm ướp','full (120g)',120,{'Tôm tỏi':120,'Tomyum':40}],
+    ['Bơ tỏi','phần (20g)',20,{'Tôm tỏi':20}],
+    ['Sốt bò','phần (360g)',360,{'Soy':140}],
+    ['Ba chỉ bò','full (150g)',150,{'Soy':150}],
+    ['Cheese khoai','phần',1,cnt('Khoai cheese')],
+    ['Sốt miso','phần (290g)',290,{'Salmon':45}],
+    ['Sốt sữa','hộp (1000g)',1000,{'Zuc':20,'Q3':20,'Q4':20,'Q5':20}],
+    ['Bông cải','gr',1,{'Sò':60,'Tôm tỏi':60}],
+    ['Bông cải Mayo','gr',1,{'Mayo':30}],
+    ['Ớt sợi','gr',1,{'Kebab':20}],
+    ['Nấm JP','gr',1,{'JP':100}],
+    ['Bachemel','gr',1,{'Sò':85,'Hawaii':20}],
+    ['Sốt Zuc','gr',1,{'Zuc':30}],
+    ['Sốt cà cô đặc','gr',1,{'Hawaii':30}],
+    ['Miso mix','gr',1,{'Sò':15}]
+  ]
+};
+const TU = {make:'Tủ make',cut:'Tủ cut',run:'Tủ run'};
+const RECIPE_VER = 2; // tăng số này khi đổi công thức mặc định
+
+function defaultItems(){
+  const o={};
+  for(const t in DEFAULT_ITEMS) o[t]=DEFAULT_ITEMS[t].map(([name,unit,div,src],i)=>({id:t+'_'+i,name,unit,div,src:{...src}}));
+  return o;
+}
+function newState(){
+  const sales={}; SALES_ROWS.forEach(r=>sales[r.n]={b:'',c:'',d:''});
+  return {v:1,recipeVer:RECIPE_VER,sales,plus:{make:false,cut:false,run:false},items:defaultItems()};
+}
+
+/* ====== TÍNH TOÁN ====== */
+const num = v => { const x=parseFloat(String(v).replace(',','.')); return isFinite(x)?x:0; };
+function salesRow(s){ const c=num(s.c), d=num(s.d); return {c,d,ec:c*0.1,ed:d*0.1,fc:c*1.1,fd:d*1.1}; }
+function pizzaTotals(state, plus){
+  const t={}; PIZZAS.forEach(p=>t[p]={a:0,b:0});
+  SALES_ROWS.forEach(r=>{
+    const s=salesRow(state.sales[r.n]||{});
+    const a=plus?s.fc:s.c, b=plus?s.fd:s.d;
+    t[r.p].a+=a*r.f; t[r.p].b+=b*r.f;
+  });
+  return t;
+}
+function calcTu(state, tu){
+  const t=pizzaTotals(state, state.plus[tu]);
+  return state.items[tu].map(it=>{
+    let a=0,b=0; const div=num(it.div)||1;
+    for(const p in it.src){ const q=num(it.src[p]); if(t[p]){a+=t[p].a*q; b+=t[p].b*q;} }
+    return {name:it.name,unit:it.unit,a:a/div,b:b/div};
+  });
+}
+const fmt = x => { const r=Math.round(x*100)/100; return r.toLocaleString('vi-VN',{maximumFractionDigits:2}); };
+const r2 = x => Math.round(x*100)/100;
+if(typeof module!=='undefined') module.exports={newState,calcTu,pizzaTotals,salesRow,SALES_ROWS,PIZZAS};
+</script>
+
+<script>
+/* ====== LƯU TRỮ ====== */
+const KEY='checklist_pizza_v1';
+let state;
+try{ state=JSON.parse(localStorage.getItem(KEY)) || newState(); }catch(e){ state=newState(); }
+// bổ sung dòng mới nếu thiếu
+SALES_ROWS.forEach(r=>{ if(!state.sales[r.n]) state.sales[r.n]={b:'',c:'',d:''}; });
+// công thức mặc định mới: cập nhật, giữ lại item bổ sung
+if(state.recipeVer!==RECIPE_VER){ const d=defaultItems(); for(const t in d) d[t]=d[t].concat((state.items&&state.items[t]||[]).filter(i=>i.custom)); state.items=d; state.recipeVer=RECIPE_VER; }
+let saveTimer;
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){} },200); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ====== TAB ====== */
+let current='sales';
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  current=b.dataset.tab;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('main section').forEach(s=>s.classList.toggle('hide',s.id!=='tab-'+current));
+  render(current);
+});
+function render(t){ if(t==='sales') renderSales(); else if(t==='recipe') renderRecipe(); else renderTu(t); }
+
+/* ====== SỐ BÁN ====== */
+function renderSales(){
+  const el=document.getElementById('tab-sales');
+  let h=`<div class="card"><div class="bar"><h2>Số bán</h2>
+    <button class="danger" id="btnClearSales">Xoá số bán</button></div>
+    <p class="muted">Nhập cột B (khoảng ngày), C (số bán mỗi ngày T2–T5), D (số bán mỗi ngày T6–CN). Cột E, F tự tính. Half = 0.5 bánh full; PM tính như PMB.</p>
+    <div class="tablewrap"><table><thead><tr>
+    <th>Tên bánh</th><th>B · Số bán từ</th><th class="num">C · T2–T5</th><th class="num">D · T6–CN</th>
+    <th class="num">E · ×10% T2–T5</th><th class="num">E · ×10% T6–CN</th><th class="num">F · +10% T2–T5</th><th class="num">F · +10% T6–CN</th>
+    </tr></thead><tbody>`;
+  SALES_ROWS.forEach((r,i)=>{
+    const s=state.sales[r.n], v=salesRow(s);
+    h+=`<tr data-i="${i}"><td>${esc(r.n)}</td>
+      <td><input type="text" data-k="b" value="${esc(s.b)}" placeholder="vd: 01/11–07/11"></td>
+      <td class="num"><input class="in-num" type="number" min="0" step="any" data-k="c" value="${esc(s.c)}"></td>
+      <td class="num"><input class="in-num" type="number" min="0" step="any" data-k="d" value="${esc(s.d)}"></td>
+      <td class="num" data-o="ec">${fmt(v.ec)}</td><td class="num" data-o="ed">${fmt(v.ed)}</td>
+      <td class="num res" data-o="fc">${fmt(v.fc)}</td><td class="num res" data-o="fd">${fmt(v.fd)}</td></tr>`;
+  });
+  h+='</tbody></table></div></div>';
+  el.innerHTML=h;
+  el.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',()=>{
+    const tr=inp.closest('tr'), r=SALES_ROWS[tr.dataset.i];
+    state.sales[r.n][inp.dataset.k]=inp.value; save();
+    const v=salesRow(state.sales[r.n]);
+    ['ec','ed','fc','fd'].forEach(k=>tr.querySelector(`[data-o="${k}"]`).textContent=fmt(v[k]));
+  }));
+  document.getElementById('btnClearSales').onclick=()=>{
+    if(!confirm('Xoá toàn bộ số bán đã nhập?')) return;
+    SALES_ROWS.forEach(r=>state.sales[r.n]={b:'',c:'',d:''}); save(); renderSales(); toast('Đã xoá số bán');
+  };
+}
+
+/* ====== TỦ ====== */
+function renderTu(tu){
+  const el=document.getElementById('tab-'+tu);
+  const rows=calcTu(state,tu);
+  let h=`<div class="card"><div class="bar"><h2>${TU[tu]}</h2>
+    <div class="actions">
+      <label class="tick"><input type="checkbox" id="plus-${tu}" ${state.plus[tu]?'checked':''}> Cộng 10%</label>
+      <button id="add-${tu}">+ Thêm item</button></div></div>
+    <p class="muted">Số cần chuẩn bị <b>mỗi ngày</b>. ${state.plus[tu]?'Đang tính theo số bán <b>cộng 10%</b>.':'Đang tính theo số bán gốc (chưa cộng 10%).'}</p>
+    <div class="tablewrap"><table><thead><tr><th>Item</th><th>Đơn vị</th><th class="num">T2–T5</th><th class="num">T6–CN</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    h+=`<tr><td>${esc(r.name)}</td><td class="muted">${esc(r.unit)}</td>
+      <td class="num res ${r.a?'':'zero'}">${fmt(r.a)}</td><td class="num res ${r.b?'':'zero'}">${fmt(r.b)}</td></tr>`;
+  });
+  h+='</tbody></table></div></div>';
+  el.innerHTML=h;
+  document.getElementById('plus-'+tu).onchange=e=>{ state.plus[tu]=e.target.checked; save(); renderTu(tu); };
+  document.getElementById('add-'+tu).onclick=()=>{
+    const it={id:tu+'_c'+Date.now(),name:'Item mới',unit:'gr',div:1,src:{},custom:true};
+    state.items[tu].push(it); save(); openItem=it.id; scrollToOpen=true;
+    document.querySelector('#tabs button[data-tab="recipe"]').click();
+  };
+}
+
+/* ====== CÔNG THỨC ====== */
+let openItem=null, scrollToOpen=false;
+function renderRecipe(){
+  const el=document.getElementById('tab-recipe');
+  let h=`<div class="card"><div class="bar"><h2>Công thức</h2>
+    <button class="danger" id="btnResetRecipe">Khôi phục công thức mặc định</button></div>
+    <p class="muted">Kết quả = Σ (số bánh × định lượng cho 1 bánh full) ÷ quy đổi.<br>
+    Ví dụ Ham PM: PMB 80g, quy đổi 500 → ra số bịch. Item đếm theo bánh (đơn vị full/phần): định lượng = 1, quy đổi = 1.</p></div>`;
+  for(const tu in TU){
+    h+=`<div class="card"><div class="bar"><h2>${TU[tu]}</h2><button data-add="${tu}">+ Thêm item</button></div>`;
+    state.items[tu].forEach((it,idx)=>{
+      const srcs=Object.entries(it.src);
+      const summary=srcs.length?srcs.map(([p,q])=>`${p} ${q}`).join(', '):'<i>chưa có bánh</i>';
+      h+=`<details class="item" data-tu="${tu}" data-idx="${idx}" ${openItem===it.id?'open':''}>
+        <summary><span><b>${esc(it.name)}</b> <span class="muted">(${esc(it.unit)})</span>${it.custom?'<span class="tag">bổ sung</span>':''}</span>
+        <span class="muted" style="text-align:right">${summary}</span></summary>
+        <div class="body">
+          <div class="grid3">
+            <div><label>Tên item</label><input type="text" data-f="name" value="${esc(it.name)}"></div>
+            <div><label>Đơn vị hiển thị</label><input type="text" data-f="unit" value="${esc(it.unit)}"></div>
+            <div><label>Quy đổi (chia cho)</label><input type="number" step="any" min="0" data-f="div" value="${esc(it.div)}"></div>
+          </div>
+          <div class="muted" style="margin-bottom:6px">Bánh dùng item này · định lượng / 1 bánh full</div>
+          ${srcs.map(([p,q])=>`<div class="srcrow" data-p="${esc(p)}">
+            <select data-s="p">${PIZZAS.map(x=>`<option ${x===p?'selected':''}>${esc(x)}</option>`).join('')}</select>
+            <input type="number" step="any" min="0" data-s="q" value="${esc(q)}">
+            <button data-s="del" title="Xoá">✕</button></div>`).join('')}
+          <div class="actions" style="margin-top:8px">
+            <button data-act="addsrc">+ Thêm bánh</button>
+            <button data-act="up">↑</button><button data-act="down">↓</button>
+            <button class="danger" data-act="delitem">Xoá item</button>
+          </div>
+        </div></details>`;
+    });
+    h+='</div>';
+  }
+  el.innerHTML=h;
+  if(scrollToOpen){ const o=el.querySelector('details.item[open]'); if(o) o.scrollIntoView({block:'center'}); scrollToOpen=false; }
+  openItem=null;
+
+  el.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{
+    const tu=b.dataset.add, it={id:tu+'_c'+Date.now(),name:'Item mới',unit:'gr',div:1,src:{},custom:true};
+    state.items[tu].push(it); save(); openItem=it.id; scrollToOpen=true; renderRecipe();
+  });
+  document.getElementById('btnResetRecipe').onclick=()=>{
+    if(!confirm('Xoá mọi chỉnh sửa & item bổ sung, quay về công thức mặc định?')) return;
+    state.items=defaultItems(); save(); renderRecipe(); toast('Đã khôi phục công thức');
+  };
+  el.querySelectorAll('details.item').forEach(d=>{
+    const tu=d.dataset.tu, idx=+d.dataset.idx, it=state.items[tu][idx];
+    const keepOpen=()=>{openItem=it.id;};
+    d.querySelectorAll('[data-f]').forEach(inp=>inp.addEventListener('change',()=>{
+      it[inp.dataset.f]=inp.dataset.f==='div'?(num(inp.value)||1):inp.value; save(); keepOpen(); renderRecipe();
+    }));
+    d.querySelectorAll('.srcrow').forEach(row=>{
+      const p0=row.dataset.p;
+      row.querySelector('[data-s="q"]').addEventListener('change',e=>{ it.src[p0]=num(e.target.value); save(); keepOpen(); renderRecipe(); });
+      row.querySelector('[data-s="p"]').addEventListener('change',e=>{
+        const np=e.target.value; if(np===p0) return;
+        if(it.src[np]!==undefined){ toast('Bánh này đã có trong item'); keepOpen(); renderRecipe(); return; }
+        const ent=Object.entries(it.src).map(([p,q])=>p===p0?[np,q]:[p,q]); it.src=Object.fromEntries(ent);
+        save(); keepOpen(); renderRecipe();
+      });
+      row.querySelector('[data-s="del"]').onclick=()=>{ delete it.src[p0]; save(); keepOpen(); renderRecipe(); };
+    });
+    d.querySelector('[data-act="addsrc"]').onclick=()=>{
+      const free=PIZZAS.find(p=>it.src[p]===undefined); if(!free) return;
+      it.src[free]=0; save(); keepOpen(); renderRecipe();
+    };
+    d.querySelector('[data-act="up"]').onclick=()=>{ if(idx>0){ const a=state.items[tu]; [a[idx-1],a[idx]]=[a[idx],a[idx-1]]; save(); keepOpen(); renderRecipe(); } };
+    d.querySelector('[data-act="down"]').onclick=()=>{ const a=state.items[tu]; if(idx<a.length-1){ [a[idx+1],a[idx]]=[a[idx],a[idx+1]]; save(); keepOpen(); renderRecipe(); } };
+    d.querySelector('[data-act="delitem"]').onclick=()=>{
+      if(!confirm(`Xoá item "${it.name}"?`)) return; state.items[tu].splice(idx,1); save(); renderRecipe();
+    };
+  });
+}
+
+/* ====== XUẤT EXCEL ====== */
+document.getElementById('btnExcel').onclick=()=>{
+  if(typeof XLSX==='undefined'){ alert('Chưa tải được thư viện Excel. Kiểm tra kết nối mạng rồi thử lại.'); return; }
+  const wb=XLSX.utils.book_new();
+  const s=[['Tên bánh','Số bán từ','T2-T5','T6-CN','Số bán ×10% T2-T5','Số bán ×10% T6-CN','Số bán +10% T2-T5','Số bán +10% T6-CN']];
+  SALES_ROWS.forEach(r=>{ const x=state.sales[r.n], v=salesRow(x); s.push([r.n,x.b,v.c,v.d,r2(v.ec),r2(v.ed),r2(v.fc),r2(v.fd)]); });
+  const ws=XLSX.utils.aoa_to_sheet(s); ws['!cols']=[{wch:18},{wch:18},{wch:9},{wch:9},{wch:16},{wch:16},{wch:16},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,'Số bán');
+  for(const tu in TU){
+    const a=[[TU[tu]+' — số cần chuẩn bị mỗi ngày'],['Cộng 10%:',state.plus[tu]?'Có':'Không'],[],['Item','Đơn vị','T2-T5','T6-CN']];
+    calcTu(state,tu).forEach(r=>a.push([r.name,r.unit,r2(r.a),r2(r.b)]));
+    const w=XLSX.utils.aoa_to_sheet(a); w['!cols']=[{wch:20},{wch:18},{wch:10},{wch:10}];
+    XLSX.utils.book_append_sheet(wb,w,TU[tu]);
+  }
+  const d=new Date(), ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb,`Checklist_${ds}.xlsx`);
+};
+
+/* ====== SAO LƯU / KHÔI PHỤC ====== */
+document.getElementById('btnBackup').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`checklist_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+document.getElementById('btnRestore').onclick=()=>document.getElementById('fileRestore').click();
+document.getElementById('fileRestore').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+      const s=JSON.parse(rd.result); if(!s.sales||!s.items) throw 0;
+      state=s; SALES_ROWS.forEach(r=>{ if(!state.sales[r.n]) state.sales[r.n]={b:'',c:'',d:''}; });
+      state.plus=state.plus||{make:false,cut:false,run:false};
+      save(); render(current); toast('Đã khôi phục dữ liệu');
+    }catch(err){ alert('File sao lưu không hợp lệ'); } };
+  rd.readAsText(f); e.target.value='';
+};
+
+render('sales');
+</script>
+</body>
+</html>
